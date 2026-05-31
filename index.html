@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
     <title>Généalo PWA</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -65,8 +65,7 @@
         }
 
         #network-container {
-            flex: 1;
-            height: 100%;
+            height: 52vh; /* Fixé sur mobile pour laisser la place au panneau d'outils */
             background: radial-gradient(circle, #1f1f24 1px, transparent 1px);
             background-size: 20px 20px;
         }
@@ -76,9 +75,14 @@
             box-shadow: 0 -10px 25px rgba(0,0,0,0.6);
             border-top: 1px solid #2e2e35;
             padding: 20px;
-            max-height: 45vh;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+            position: fixed; /* Rendu complètement fixe et persistant au bas sur mobile */
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 48vh;
             overflow-y: auto;
-            z-index: 10;
+            z-index: 1000;
         }
 
         .panel-section {
@@ -162,8 +166,8 @@
 
         .toolbar-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            grid-template-columns: 1fr 1fr 1fr; /* Ajusté à 3 colonnes pour accueillir l'export */
+            gap: 8px;
             margin-bottom: 20px;
             border-bottom: 1px solid #2e2e35;
             padding-bottom: 20px;
@@ -181,12 +185,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 6px;
             border-radius: 12px;
             background: var(--bg-card);
             color: var(--text-main);
             box-shadow: var(--shadow-soft);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         footer {
@@ -205,12 +209,22 @@
                 flex-direction: row;
             }
 
+            #network-container {
+                flex: 1;
+                height: 100%;
+            }
+
             #control-panel {
+                position: relative;
+                bottom: auto;
+                left: auto;
+                right: auto;
                 width: 380px;
                 max-height: 100%;
                 border-top: none;
                 border-left: 1px solid #2e2e35;
                 box-shadow: -10px 0 25px rgba(0,0,0,0.4);
+                padding-bottom: 20px;
             }
         }
     </style>
@@ -241,12 +255,16 @@
 
             <div class="toolbar-grid">
                 <button id="btn-delete-mode" class="btn-tool" onclick="toggleDeleteMode()">
-                    <span style="font-size: 1.2rem;">🗑️</span>
+                    <span style="font-size: 1.1rem;">🗑️</span>
                     <span>Suppression</span>
                 </button>
                 <button class="btn-tool" onclick="loadFromLocalStorage()">
-                    <span style="font-size: 1.2rem;">💾</span>
+                    <span style="font-size: 1.1rem;">💾</span>
                     <span>Restaurer</span>
+                </button>
+                <button class="btn-tool" onclick="exportToClipboard()">
+                    <span style="font-size: 1.1rem;">📤</span>
+                    <span>Exporter</span>
                 </button>
             </div>
 
@@ -381,6 +399,66 @@
             }
         }
 
+        // Génère un code HTML autonome, fige les données/coordonnées, désactive l'édition et copie dans le presse-papiers
+        function exportToClipboard() {
+            saveCurrentPositions(); // S'assure que toutes les coordonnées x/y actuelles sont capturées dans le DataSet
+            
+            const nodesData = JSON.stringify(nodes.get());
+            const edgesData = JSON.stringify(edges.get());
+            
+            const staticHtmlCode = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Généalo - Arbre Exporté</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"><\/script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #16161a; color: #e1e1e6; margin: 0; padding: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        header { background: #222227; padding: 15px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10; }
+        header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; letter-spacing: 1px; }
+        #network-container { flex: 1; height: 100%; background: radial-gradient(circle, #1f1f24 1px, transparent 1px); background-size: 20px 20px; }
+    <\/style>
+</head>
+<body>
+    <header><h1>Généalo - Structure Statique</h1></header>
+    <div id="network-container"></div>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('network-container');
+            const data = {
+                nodes: new vis.DataSet(${nodesData}),
+                edges: new vis.DataSet(${edgesData})
+            };
+            const options = {
+                physics: { enabled: false },
+                edges: {
+                    smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 },
+                    color: { color: '#4a4a52' },
+                    width: 2
+                },
+                interaction: { 
+                    zoomView: true, 
+                    dragView: true, 
+                    dragNodes: false, 
+                    selectable: false 
+                }
+            };
+            new vis.Network(container, data, options);
+        });
+    <\/script>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
+</body>
+</html>`;
+
+            navigator.clipboard.writeText(staticHtmlCode).then(() => {
+                alert("Code HTML statique copié avec succès dans le presse-papiers !");
+            }).catch(err => {
+                alert("Erreur lors de la copie automatique : " + err);
+            });
+        }
+
         function saveState() {
             historyUndo.push({
                 nodes: nodes.get(),
@@ -459,6 +537,22 @@
                     }
                 }
             });
+
+            // Ajustement dynamique pour coller au-dessus du clavier virtuel (iOS/Android)
+            if (window.visualViewport) {
+                const adjustPanelForKeyboard = () => {
+                    const panel = document.getElementById('control-panel');
+                    if (!panel) return;
+                    if (window.innerWidth < 768) {
+                        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+                        panel.style.bottom = `${Math.max(0, keyboardHeight)}px`;
+                    } else {
+                        panel.style.bottom = '';
+                    }
+                };
+                window.visualViewport.addEventListener('resize', adjustPanelForKeyboard);
+                window.visualViewport.addEventListener('scroll', adjustPanelForKeyboard);
+            }
         });
 
         function updatePersonName() {
@@ -642,7 +736,5 @@
             cancelAction();
         }
     </script>
-
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
 </body>
 </html>
