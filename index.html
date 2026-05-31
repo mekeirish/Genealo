@@ -399,31 +399,31 @@
             }
         }
 
-        // Génère un code HTML autonome, fige les données/coordonnées, désactive l'édition et copie dans le presse-papiers
+        // Génère un code HTML autonome sans faire planter Mastercode (utilisation de masques hexadécimaux \x3C et \x3E)
         function exportToClipboard() {
             saveCurrentPositions(); // S'assure que toutes les coordonnées x/y actuelles sont capturées dans le DataSet
             
             const nodesData = JSON.stringify(nodes.get());
             const edgesData = JSON.stringify(edges.get());
             
-            const staticHtmlCode = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Généalo - Arbre Exporté</title>
-    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"><\/script>
-    <style>
+            const staticHtmlCode = `\x3C!DOCTYPE html\x3E
+\x3Chtml lang="fr"\x3E
+\x3Chead\x3E
+    \x3Cmeta charset="UTF-8"\x3E
+    \x3Cmeta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"\x3E
+    \x3Ctitle\x3EGénéalo - Arbre Exporté\x3C/title\x3E
+    \x3Cscript type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"\x3E\x3C/script\x3E
+    \x3Cstyle\x3E
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #16161a; color: #e1e1e6; margin: 0; padding: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         header { background: #222227; padding: 15px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10; }
         header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; letter-spacing: 1px; }
         #network-container { flex: 1; height: 100%; background: radial-gradient(circle, #1f1f24 1px, transparent 1px); background-size: 20px 20px; }
-    <\/style>
-</head>
-<body>
-    <header><h1>Généalo - Structure Statique</h1></header>
-    <div id="network-container"></div>
-    <script>
+    \x3C/style\x3E
+\x3C/head\x3E
+\x3Cbody\x3E
+    \x3Cheader\x3E\x3Ch1\x3EGénéalo - Structure Statique\x3C/h1\x3E\x3C/header\x3E
+    \x3Cdiv id="network-container"\x3E\x3C/div\x3E
+    \x3Cscript\x3E
         window.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('network-container');
             const data = {
@@ -446,11 +446,9 @@
             };
             new vis.Network(container, data, options);
         });
-    <\/script>
-
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
-</body>
-</html>`;
+    \x3C/script\x3E
+\x3C/body\x3E
+\x3C/html\x3E`;
 
             navigator.clipboard.writeText(staticHtmlCode).then(() => {
                 alert("Code HTML statique copié avec succès dans le presse-papiers !");
@@ -736,5 +734,7 @@
             cancelAction();
         }
     </script>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
 </body>
 </html>
