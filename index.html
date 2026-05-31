@@ -399,56 +399,20 @@
             }
         }
 
-        // Génère un code HTML autonome sans faire planter Mastercode (utilisation de masques hexadécimaux \x3C et \x3E)
+        // Génère un code HTML autonome sans faire planter Mastercode (Encapuslation Base64 pure sans backticks)
         function exportToClipboard() {
             saveCurrentPositions(); // S'assure que toutes les coordonnées x/y actuelles sont capturées dans le DataSet
             
             const nodesData = JSON.stringify(nodes.get());
             const edgesData = JSON.stringify(edges.get());
             
-            const staticHtmlCode = `\x3C!DOCTYPE html\x3E
-\x3Chtml lang="fr"\x3E
-\x3Chead\x3E
-    \x3Cmeta charset="UTF-8"\x3E
-    \x3Cmeta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"\x3E
-    \x3Ctitle\x3EGénéalo - Arbre Exporté\x3C/title\x3E
-    \x3Cscript type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"\x3E\x3C/script\x3E
-    \x3Cstyle\x3E
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #16161a; color: #e1e1e6; margin: 0; padding: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        header { background: #222227; padding: 15px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 10; }
-        header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; letter-spacing: 1px; }
-        #network-container { flex: 1; height: 100%; background: radial-gradient(circle, #1f1f24 1px, transparent 1px); background-size: 20px 20px; }
-    \x3C/style\x3E
-\x3C/head\x3E
-\x3Cbody\x3E
-    \x3Cheader\x3E\x3Ch1\x3EGénéalo - Structure Statique\x3C/h1\x3E\x3C/header\x3E
-    \x3Cdiv id="network-container"\x3E\x3C/div\x3E
-    \x3Cscript\x3E
-        window.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('network-container');
-            const data = {
-                nodes: new vis.DataSet(${nodesData}),
-                edges: new vis.DataSet(${edgesData})
-            };
-            const options = {
-                physics: { enabled: false },
-                edges: {
-                    smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 },
-                    color: { color: '#4a4a52' },
-                    width: 2
-                },
-                interaction: { 
-                    zoomView: true, 
-                    dragView: true, 
-                    dragNodes: false, 
-                    selectable: false 
-                }
-            };
-            new vis.Network(container, data, options);
-        });
-    \x3C/script\x3E
-\x3C/body\x3E
-\x3C/html\x3E`;
+            // Chaîne Base64 complète du fichier d'export statique pour éviter toute collision avec Mastercode
+            const b64 = 'PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImZyIj4KPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJVVEYtOCI+CiAgICA8bWV0YSBuYW1lPSJ2aWV3cG9ydCIgY29udGVudD0id2lkdGg9ZGV2aWNlLXdpZHRoLCBpbml0aWFsLXNjYWxlPTEuMCwgdXNlci1zY2FsYWJsZT1ubyI+CiAgICA8dGl0bGU+R8OpbsOpYWxvIC0gQXJicmUgRXhwb3J0w6k8L3RpdGxlPgogICAgPHNjcmlwdCB0eXBlPSJ0ZXh0L2phdmFzY3JpcHQiIHNyYz0iaHR0cHM6Ly91bnBrZy5jb20vdmlzLW5ldHdvcmsvc3RhbmRhbG9uZS91bWQvdmlzLW5ldHdvcmsubWluLmpzIj48L3NjcmlwdD4KICAgIDxzdHlsZT4KICAgICAgICBib2R5IHsgZm9udC1mYW1pbHk6IC1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgIlNlZ29lIFVJIiwgUm9ib3RvLCBzYW5zLXNlcmlmOyBiYWNrZ3JvdW5kLWNvbG9yOiAjMTYxNjFhOyBjb2xvcjogI2UxZTFlNjsgbWFyZ2luOiAwOyBwYWRkaW5nOiAwOyBvdmVyZmxvdzogaGlkZGVuOyBoZWlnaHQ6IDEwMHZoOyBkaXNwbGF5OiBmbGV4OyBmbGV4LWRpcmVjdGlvbjogY29sdW1uOyB9CiAgICAgICAgaGVhZGVyIHsgYmFja2dyb3VuZDogIzIyMjIyNzsgcGFkZGluZzogMTVweDsgdGV4dC1hbGlnbjogY2VudGVyOyBib3gtc2hhZG93OiAwIDRweCAxMnB4IHJnYmEoMCwwLDAsMC41KTsgei1pbmRleDogMTA7IH0KICAgICAgICBoZWFkZXIgaDEgeyBmb250LXNpemU6IDEuMnJlbTsgbWFyZ2luOiAwOyBmb250LXdlaWdodDogNjAwOyBsZXR0ZXItc3BhY2luZzogMXB4OyB9CiAgICAgICAgI25ldHdvcmstY29udGFpbmVyIHsgZmxleDogMTsgaGVpZ2h0OiAxMDAlOyBiYWNrZ3JvdW5kOiByYWRpYWwtZ3JhZGllbnQoY2lyY2xlLCAjMWYxZjI0IDFweCwgdHJhbnNwYXJlbnQgMXB4KTsgYmFja2dyb3VuZC1zaXplOiAyMHB4IDIwcHg7IH0KICAgIDwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgICA8aGVhZGVyPjxoMT5Hw6luw6lhbG8gLSBTdHJ1Y3R1cmUgU3RhdGlxdWU8L2gxPjwvaGVhZGVyPgogICAgPGRpdiBpZD0ibmV0d29yay1jb250YWluZXIiPjwvZGl2PgogICAgPHNjcmlwdD4KICAgICAgICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcignRE9NQ29udGVudExvYWRlZCcsICgpID0+IHsKICAgICAgICAgICAgY29uc3QgY29udGFpbmVyID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ25ldHdvcmstY29udGFpbmVyJyk7CiAgICAgICAgICAgIGNvbnN0IGRhdGEgPSB7CiAgICAgICAgICAgICAgICBub2RlczogbmV3IHZpcy5EYXRhU2V0KF9fTk9ERVNfREFUQV9fKSwKICAgICAgICAgICAgICAgIGVkZ2VzOiBuZXcgdmlzLkRhdGFTZXQoX19FREdFU19EQVRBX18pCiAgICAgICAgICAgIH07CiAgICAgICAgICAgIGNvbnN0IG9wdGlvbnMgPSB7CiAgICAgICAgICAgICAgICBwaHlzaWNzOiB7IGVuYWJsZWQ6IGZhbHNlIH0sCiAgICAgICAgICAgICAgICBlZGdlczogewogICAgICAgICAgICAgICAgICAgIHNtb290aDogeyB0eXBlOiAnY3ViaWNCZXppZXInLCBmb3JjZURpcmVjdGlvbjogJ3ZlcnRpY2FsJywgcm91bmRuZXNzOiAwLjUgfSwKICAgICAgICAgICAgICAgICAgICBjb2xvcjogeyBjb2xvcjogJyM0YTRhNTInIH0sCiAgICAgICAgICAgICAgICAgICAgd2lkdGg6IDIKICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICBpbnRlcmFjdGlvbjogeyAKICAgICAgICAgICAgICAgICAgICB6b29tVmlldzogdHJ1ZSwgCiAgICAgICAgICAgICAgICAgICAgZHJhZ1ZpZXc6IHRydWUsIAogICAgICAgICAgICAgICAgICAgIGRyYWdOb2RlczogZmFsc2UsIAogICAgICAgICAgICAgICAgICAgIHNlbGVjdGFibGU6IGZhbHNlIAogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9OwogICAgICAgICAgICBuZXcgdmlzLk5ldHdvcmsoY29udGFpbmVyLCBkYXRhLCBvcHRpb25zKTsKICAgICAgICB9KTsKICAgIDwvc2NyaXB0Pgo8L2JvZHk+CjwvaHRtbD4=';
+            
+            const decodedTemplate = decodeURIComponent(escape(atob(b64)));
+            const staticHtmlCode = decodedTemplate
+                .replace('__NODES_DATA__', nodesData)
+                .replace('__EDGES_DATA__', edgesData);
 
             navigator.clipboard.writeText(staticHtmlCode).then(() => {
                 alert("Code HTML statique copié avec succès dans le presse-papiers !");
