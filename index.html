@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Généalo PWA</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#121214">
+
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #16161a;
+            --bg-card: #222227;
+            --bg-input: #1a1a1e;
+            --text-main: #e1e1e6;
+            --text-muted: #a0a0aa;
+            --accent-man: #3b82f6;
+            --accent-woman: #ec4899;
+            --accent-union: #10b981;
+            --shadow-soft: 4px 4px 10px #0d0d0f, -4px -4px 10px #1f1f25;
+            --shadow-inset: inset 2px 2px 5px #0d0d0f, inset -2px -2px 5px #1f1f25;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--bg-card);
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        #app-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #network-container {
+            flex: 1;
+            height: 100%;
+            background: radial-gradient(circle, #1f1f24 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        #control-panel {
+            background: var(--bg-card);
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.6);
+            border-top: 1px solid #2e2e35;
+            padding: 20px;
+            max-height: 45vh;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .panel-section {
+            display: none;
+        }
+
+        .panel-section.active {
+            display: block;
+        }
+
+        h2 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: var(--text-main);
+            border-left: 3px solid var(--accent-man);
+            padding-left: 8px;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-input);
+            border: none;
+            border-radius: 6px;
+            color: var(--text-main);
+            box-shadow: var(--shadow-inset);
+            font-size: 0.9rem;
+        }
+
+        input:focus, select:focus {
+            outline: 1px solid var(--accent-man);
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--bg-card);
+            color: var(--text-main);
+            box-shadow: var(--shadow-soft);
+            font-size: 0.85rem;
+            transition: transform 0.1s ease;
+        }
+
+        button:active {
+            transform: scale(0.98);
+            box-shadow: var(--shadow-inset);
+        }
+
+        button.primary {
+            background: var(--accent-man);
+            color: white;
+            box-shadow: none;
+        }
+
+        button.secondary {
+            background: var(--accent-union);
+            color: white;
+            box-shadow: none;
+        }
+
+        .toolbar-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #2e2e35;
+            padding-bottom: 20px;
+        }
+
+        .toolbar-history {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .btn-tool {
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            color: var(--text-main);
+            box-shadow: var(--shadow-soft);
+            font-size: 0.9rem;
+        }
+
+        footer {
+            background: var(--bg-main);
+            text-align: center;
+            padding: 8px;
+            font-size: 0.7rem;
+            color: #4a4a52;
+            letter-spacing: 0.5px;
+            border-top: 1px solid #1c1c20;
+            z-index: 10;
+        }
+
+        @media (min-width: 768px) {
+            #app-container {
+                flex-direction: row;
+            }
+
+            #control-panel {
+                width: 380px;
+                max-height: 100%;
+                border-top: none;
+                border-left: 1px solid #2e2e35;
+                box-shadow: -10px 0 25px rgba(0,0,0,0.4);
+            }
+        }
+    </style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4b6cb7">
+<link rel="apple-touch-icon" href="icon.png"></head>
+<body>
+
+    <header>
+        <h1>Généalo</h1>
+    </header>
+
+    <div id="app-container">
+        <div id="network-container"></div>
+
+        <div id="control-panel">
+            <div class="toolbar-history">
+                <button class="btn-tool" onclick="undo()">
+                    <span>↩️</span>
+                    <span>Retour</span>
+                </button>
+                <button class="btn-tool" onclick="redo()">
+                    <span>↪️</span>
+                    <span>Avant</span>
+                </button>
+            </div>
+
+            <div class="toolbar-grid">
+                <button id="btn-delete-mode" class="btn-tool" onclick="toggleDeleteMode()">
+                    <span style="font-size: 1.2rem;">🗑️</span>
+                    <span>Suppression</span>
+                </button>
+                <button class="btn-tool" onclick="loadFromLocalStorage()">
+                    <span style="font-size: 1.2rem;">💾</span>
+                    <span>Restaurer</span>
+                </button>
+            </div>
+
+            <div id="section-default" class="panel-section active">
+                <h2>Initialiser l'arbre généalogique</h2>
+                <div class="input-group">
+                    <label>Nom Complet de la Racine</label>
+                    <input type="text" id="init-name" placeholder="Ex: Jean Dupont">
+                </div>
+                <div class="input-group">
+                    <label>Genre</label>
+                    <select id="init-gender">
+                        <option value="M">Homme</option>
+                        <option value="F">Femme</option>
+                    </select>
+                </div>
+                <button class="primary" style="width:100%" onclick="createRootPerson()">Créer le premier ancêtre</button>
+            </div>
+
+            <div id="section-person" class="panel-section">
+                <h2 id="person-title">Nom de l'individu</h2>
+                <input type="hidden" id="current-person-id">
+                
+                <div class="input-group" style="margin-top: 10px; margin-bottom: 15px;">
+                    <label>Modifier le nom</label>
+                    <input type="text" id="edit-person-name" oninput="updatePersonName()" placeholder="Ex: Marie Dupont">
+                </div>
+                
+                <div class="btn-grid">
+                    <button class="primary" onclick="prepareAddUnion()">Du haut vers le bas (Ajouter Conjoint)</button>
+                    <button class="secondary" onclick="executeAddParents()">Du bas vers le haut (Ajouter les Parents)</button>
+                </div>
+                <div style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); text-align: center; line-height: 1.4;">
+                    💡 <strong>Pour ajouter un enfant :</strong> Cliquez directement sur le <strong>nœud vert d'union</strong> situé entre les deux parents.
+                </div>
+            </div>
+
+            <div id="section-add-union" class="panel-section">
+                <h2>Nouvelle Union (Mariage / Multi-conjoints)</h2>
+                <div class="input-group">
+                    <label>Nom du Conjoint / Nouvelle Épouse</label>
+                    <input type="text" id="spouse-name" placeholder="Nom du partenaire">
+                </div>
+                <div class="input-group">
+                    <label>Genre du Conjoint</label>
+                    <select id="spouse-gender">
+                        <option value="F">Femme</option>
+                        <option value="M">Homme</option>
+                    </select>
+                </div>
+                <div class="btn-grid">
+                    <button class="secondary" onclick="executeAddUnion()">Créer l'Union</button>
+                    <button onclick="cancelAction()">Annuler</button>
+                </div>
+            </div>
+
+            <div id="section-add-child" class="panel-section">
+                <h2>Ajouter un Enfant à cette Union</h2>
+                <div class="input-group">
+                    <label>Nom de l'Enfant</label>
+                    <input type="text" id="child-name" placeholder="Nom de l'enfant">
+                </div>
+                <div class="input-group">
+                    <label>Genre</label>
+                    <select id="child-gender">
+                        <option value="M">Homme</option>
+                        <option value="F">Femme</option>
+                    </select>
+                </div>
+                <div class="btn-grid">
+                    <button class="primary" onclick="executeAddChild()">Ajouter l'Enfant</button>
+                    <button onclick="cancelAction()">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Made by Laiche Brahim 2026 Paris
+    </footer>
+
+    <script>
+        let nodes = new vis.DataSet([]);
+        let edges = new vis.DataSet([]);
+        let network = null;
+        let selectedNodeId = null;
+        let deleteMode = false;
+
+        let historyUndo = [];
+        let historyRedo = [];
+
+        const options = {
+            physics: { enabled: false },
+            edges: {
+                smooth: {
+                    type: 'cubicBezier',
+                    forceDirection: 'vertical',
+                    roundness: 0.5
+                },
+                color: { color: '#4a4a52', highlight: '#10b981' },
+                width: 2
+            },
+            interaction: { zoomView: true, dragView: true, selectable: true }
+        };
+
+        // Sauvegarde automatique et intelligente dans le stockage local
+        function saveToLocalStorage() {
+            const data = {
+                nodes: nodes.get(),
+                edges: edges.get()
+            };
+            localStorage.setItem('genealo_persistent_backup', JSON.stringify(data));
+        }
+
+        // Restauration via le bouton dédié
+        function loadFromLocalStorage() {
+            const backup = localStorage.getItem('genealo_persistent_backup');
+            if (backup) {
+                const data = JSON.parse(backup);
+                if (data.nodes && data.nodes.length > 0) {
+                    saveState(); // Enregistre l'état actuel dans l'historique avant d'écraser
+                    nodes.clear();
+                    edges.clear();
+                    nodes.add(data.nodes);
+                    edges.add(data.edges);
+                    cancelAction();
+                } else {
+                    alert("La sauvegarde locale est vide.");
+                }
+            } else {
+                alert("Aucune donnée enregistrée trouvée dans le stockage local.");
+            }
+        }
+
+        function saveState() {
+            historyUndo.push({
+                nodes: nodes.get(),
+                edges: edges.get()
+            });
+            historyRedo = [];
+        }
+
+        function undo() {
+            if (historyUndo.length === 0) return;
+            historyRedo.push({ nodes: nodes.get(), edges: edges.get() });
+            let prevState = historyUndo.pop();
+            nodes.clear(); edges.clear();
+            nodes.add(prevState.nodes); edges.add(prevState.edges);
+            saveToLocalStorage();
+            cancelAction();
+        }
+
+        function redo() {
+            if (historyRedo.length === 0) return;
+            historyUndo.push({ nodes: nodes.get(), edges: edges.get() });
+            let nextState = historyRedo.pop();
+            nodes.clear(); edges.clear();
+            nodes.add(nextState.nodes); edges.add(nextState.edges);
+            saveToLocalStorage();
+            cancelAction();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('network-container');
+            const data = { nodes: nodes, edges: edges };
+            network = new vis.Network(container, data, options);
+
+            network.on("click", function (params) {
+                if (params.nodes.length > 0) {
+                    selectedNodeId = params.nodes[0];
+                    
+                    if (deleteMode) {
+                        saveState();
+                        nodes.remove(selectedNodeId);
+                        const connectedEdges = edges.get({
+                            filter: function(item) { return item.from === selectedNodeId || item.to === selectedNodeId; }
+                        });
+                        connectedEdges.forEach(edge => edges.remove(edge.id));
+                        saveToLocalStorage();
+                        cancelAction();
+                        return;
+                    }
+
+                    const clickedNode = nodes.get(selectedNodeId);
+                    if(clickedNode && clickedNode.shape === 'box') {
+                        switchSection('section-person');
+                        document.getElementById('person-title').innerText = clickedNode.label.replace('\n', ' ');
+                        document.getElementById('current-person-id').value = selectedNodeId;
+                        document.getElementById('edit-person-name').value = clickedNode.label;
+                    } else if (clickedNode && clickedNode.shape === 'dot') {
+                        switchSection('section-add-child');
+                    }
+                } else {
+                    cancelAction();
+                }
+            });
+
+            network.on("dragEnd", function (params) {
+                if (params.nodes.length > 0) {
+                    const draggedId = params.nodes[0];
+                    const currentPositions = network.getPositions();
+                    if (currentPositions[draggedId]) {
+                        saveState();
+                        nodes.update({
+                            id: draggedId,
+                            x: currentPositions[draggedId].x,
+                            y: currentPositions[draggedId].y
+                        });
+                        saveToLocalStorage();
+                    }
+                }
+            });
+        });
+
+        function updatePersonName() {
+            const currentPersonId = document.getElementById('current-person-id').value;
+            const newName = document.getElementById('edit-person-name').value || "Sans nom";
+            if (currentPersonId) {
+                nodes.update({ id: currentPersonId, label: newName });
+                document.getElementById('person-title').innerText = newName;
+                saveToLocalStorage();
+            }
+        }
+
+        function toggleDeleteMode() {
+            deleteMode = !deleteMode;
+            const btn = document.getElementById('btn-delete-mode');
+            if (deleteMode) {
+                btn.style.background = '#ef4444'; btn.style.color = '#fff'; btn.style.boxShadow = 'var(--shadow-inset)';
+            } else {
+                btn.style.background = 'var(--bg-card)'; btn.style.color = 'var(--text-main)'; btn.style.boxShadow = 'var(--shadow-soft)';
+            }
+        }
+
+        function saveCurrentPositions() {
+            if (!network) return;
+            const currentPositions = network.getPositions();
+            nodes.forEach(node => {
+                if (currentPositions[node.id]) {
+                    nodes.update({ id: node.id, x: currentPositions[node.id].x, y: currentPositions[node.id].y });
+                }
+            });
+        }
+
+        function switchSection(sectionId) {
+            document.querySelectorAll('.panel-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        function cancelAction() {
+            selectedNodeId = null;
+            if (nodes.get().length === 0) {
+                switchSection('section-default');
+            } else {
+                document.querySelectorAll('.panel-section').forEach(sec => sec.classList.remove('active'));
+            }
+        }
+
+        function createRootPerson() {
+            const name = document.getElementById('init-name').value || "Nouvel Ancêtre";
+            const gender = document.getElementById('init-gender').value;
+            const id = 'p_' + Date.now();
+            
+            saveState();
+            nodes.add({
+                id: id, label: name, shape: 'box', x: 0, y: 0,
+                color: gender === 'M' ? { background: '#1e3a8a', border: '#3b82f6' } : { background: '#701a75', border: '#ec4899' },
+                font: { color: '#fff' }
+            });
+            saveToLocalStorage();
+            document.getElementById('init-name').value = '';
+            cancelAction();
+        }
+
+        function prepareAddUnion() {
+            switchSection('section-add-union');
+        }
+
+        function executeAddUnion() {
+            const currentPersonId = document.getElementById('current-person-id').value;
+            const spouseName = document.getElementById('spouse-name').value || "Conjoint";
+            const spouseGender = document.getElementById('spouse-gender').value;
+            
+            const spouseId = 'p_' + Date.now();
+            const unionId = 'u_' + Date.now();
+
+            saveCurrentPositions();
+            saveState();
+            const currentPositions = network.getPositions();
+            const pPos = currentPositions[currentPersonId] || { x: 0, y: 0 };
+
+            const spouseX = pPos.x + 160;
+            const spouseY = pPos.y;
+            const unionX = pPos.x + 80;
+            const unionY = pPos.y + 45;
+
+            nodes.add({
+                id: spouseId, label: spouseName, shape: 'box', x: spouseX, y: spouseY,
+                color: spouseGender === 'M' ? { background: '#1e3a8a', border: '#3b82f6' } : { background: '#701a75', border: '#ec4899' },
+                font: { color: '#fff' }
+            });
+
+            nodes.add({ id: unionId, label: 'Union', shape: 'dot', size: 7, color: '#10b981', x: unionX, y: unionY });
+
+            edges.add([
+                { from: currentPersonId, to: unionId, arrows: { to: { enabled: false } } },
+                { from: spouseId, to: unionId, arrows: { to: { enabled: false } } }
+            ]);
+
+            saveToLocalStorage();
+            document.getElementById('spouse-name').value = '';
+            cancelAction();
+        }
+
+        function executeAddParents() {
+            const childId = document.getElementById('current-person-id').value;
+            
+            saveCurrentPositions();
+            saveState();
+            
+            const currentPositions = network.getPositions();
+            const childPos = currentPositions[childId] || { x: 0, y: 0 };
+
+            const fatherId = 'p_f_' + Date.now();
+            const motherId = 'p_m_' + Date.now();
+            const unionId = 'u_p_' + Date.now();
+
+            const unionX = childPos.x;
+            const unionY = childPos.y - 55;
+            const fatherX = childPos.x - 80;
+            const fatherY = childPos.y - 100;
+            const motherX = childPos.x + 80;
+            const motherY = childPos.y - 100;
+
+            nodes.add({
+                id: fatherId, label: "Père", shape: 'box', x: fatherX, y: fatherY,
+                color: { background: '#1e3a8a', border: '#3b82f6' }, font: { color: '#fff' }
+            });
+
+            nodes.add({
+                id: motherId, label: "Mère", shape: 'box', x: motherX, y: motherY,
+                color: { background: '#701a75', border: '#ec4899' }, font: { color: '#fff' }
+            });
+
+            nodes.add({ id: unionId, label: 'Union', shape: 'dot', size: 7, color: '#10b981', x: unionX, y: unionY });
+
+            edges.add([
+                { from: fatherId, to: unionId, arrows: { to: { enabled: false } } },
+                { from: motherId, to: unionId, arrows: { to: { enabled: false } } },
+                { from: unionId, to: childId, arrows: 'to' }
+            ]);
+
+            saveToLocalStorage();
+            cancelAction();
+        }
+
+        function executeAddChild() {
+            const childName = document.getElementById('child-name').value || "Nouvel Enfant";
+            const childGender = document.getElementById('child-gender').value;
+            const childId = 'p_' + Date.now();
+
+            saveCurrentPositions();
+            saveState();
+            const currentPositions = network.getPositions();
+            const uPos = currentPositions[selectedNodeId] || { x: 0, y: 0 };
+
+            const connectedChildren = edges.get({
+                filter: function (item) { return item.from === selectedNodeId; }
+            });
+            const childCount = connectedChildren.length;
+
+            let offsetX = 0;
+            if (childCount > 0) {
+                const step = 160;
+                const sign = (childCount % 2 === 1) ? 1 : -1;
+                const multiplier = Math.ceil(childCount / 2);
+                offsetX = sign * multiplier * step;
+            }
+
+            const childX = uPos.x + offsetX;
+            const childY = uPos.y + 55;
+
+            nodes.add({
+                id: childId, label: childName, shape: 'box', x: childX, y: childY,
+                color: childGender === 'M' ? { background: '#1e3a8a', border: '#3b82f6' } : { background: '#701a75', border: '#ec4899' },
+                font: { color: '#fff' }
+            });
+
+            edges.add({ from: selectedNodeId, to: childId, arrows: 'to' });
+
+            saveToLocalStorage();
+            document.getElementById('child-name').value = '';
+            cancelAction();
+        }
+    </script>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
+</body>
+</html>
